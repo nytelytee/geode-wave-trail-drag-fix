@@ -9,6 +9,7 @@
 	"name": "Wave Trail Drag Fix",
 	"developer": "NyteLyte",
 	"description": "Fix the wave trail being buggy on D blocks.",
+	"repository": "https://github.com/nytelytee/geode-wave-trail-drag-fix",
 	"resources": {
 		"sprites": [
 			"resources/with.png",
