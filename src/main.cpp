@@ -10,10 +10,14 @@ class $modify(PlayerObject) {
 
 	void update(float p0) {
 		if (!m_isDart) return PlayerObject::update(p0);
+
+		// (part of the) fix for the wave interacting badly with slopes
+		if (!m_isOnSlope && m_wasOnSlope && m_yVelocity != 0)
+			m_waveTrail->addPoint(m_fields->prev_position);
 		// exiting a straight area, put the point on the previous
 		// frame's position (where the wave was while it was still on
 		// the straight area)
-		if (m_yVelocity != 0 && m_fields->prev_yVelocity == 0 && !m_fields->dont_add_point)
+		else if (m_yVelocity != 0 && m_fields->prev_yVelocity == 0 && !m_fields->dont_add_point)
 			m_waveTrail->addPoint(m_fields->prev_position);
 		// entering a straight area, put the point on the current
 		// frame's position (the wave just landed on the straight area)
@@ -37,5 +41,10 @@ class $modify(PlayerObject) {
 	void activateStreak() {
 		m_fields->dont_add_point = true;
 		PlayerObject::activateStreak();
+	}
+	void placeStreakPoint() {
+		// (second part of the) fix for the wave interacting badly with slopes
+		if (!m_isOnSlope && m_wasOnSlope) return;
+		PlayerObject::placeStreakPoint();
 	}
 };
