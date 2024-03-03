@@ -1,3 +1,7 @@
+# v1.0.3
+
+- fix slant issue
+
 # v1.0.2
 
 - fix interaction with slopes
