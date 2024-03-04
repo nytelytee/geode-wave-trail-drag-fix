@@ -10,6 +10,7 @@ class $modify(WaveTrailFixPlayerObject, PlayerObject) {
 	cocos2d::CCPoint current_position{-12, -12};
 
 	bool force_add = true;
+	bool dont_add = false;
 
 	void resetObject() {
 		m_fields->force_add = true;
@@ -36,10 +37,16 @@ class $modify(WaveTrailFixPlayerObject, PlayerObject) {
 		cocos2d::CCPoint previous_vector = m_fields->current_position - m_fields->prev_position;
 		float cross_product_magnitude = abs(current_vector.cross(previous_vector));
 
-		if (cross_product_magnitude > 0.01)
+		if (cross_product_magnitude > 0.01 && !m_fields->dont_add)
 			m_waveTrail->addPoint(m_fields->current_position);
+		else if (m_fields->dont_add) m_fields->dont_add = false;
 
 		m_fields->prev_position = m_fields->current_position;
+	}
+	
+	void resetStreak() {
+		m_fields->dont_add = true;
+		PlayerObject::resetStreak();
 	}
 
 	void placeStreakPoint() {}

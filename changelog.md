@@ -1,3 +1,7 @@
+# v1.1.1
+
+- fix teleport portal bug
+
 # v1.1.0
 
 - recode everything using a different algorithm, hopefully correct in more cases
