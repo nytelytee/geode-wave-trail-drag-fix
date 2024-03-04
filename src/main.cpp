@@ -24,6 +24,10 @@ class $modify(WaveTrailFixPlayerObject, PlayerObject) {
 
 	void postCollision(float p0) {
 		PlayerObject::postCollision(p0);
+		if (!m_isDart) {
+			m_fields->prev_position = m_fields->current_position;
+			return;
+		}
 
 		CCPoint next_position = getRealPosition();
 		
@@ -49,7 +53,7 @@ class $modify(WaveTrailFixPlayerObject, PlayerObject) {
 		PlayerObject::resetStreak();
 	}
 
-	void placeStreakPoint() {}
+	void placeStreakPoint() { if (!m_isDart) PlayerObject::placeStreakPoint(); }
 };
 
 class $modify(PlayLayer) {

@@ -1,3 +1,7 @@
+# v1.1.2
+
+- fix trail being drawn in non-wave gamemode
+
 # v1.1.1
 
 - fix teleport portal bug
