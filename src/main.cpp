@@ -53,7 +53,7 @@ class $modify(WaveTrailFixPlayerObject, PlayerObject) {
 		PlayerObject::resetStreak();
 	}
 
-	void placeStreakPoint() { if (!m_isDart) PlayerObject::placeStreakPoint(); }
+	void placeStreakPoint() { if (!m_isDart || !m_gameLayer) PlayerObject::placeStreakPoint(); }
 };
 
 class $modify(PlayLayer) {
