@@ -58,10 +58,10 @@ class $modify(WaveTrailFixPlayerObject, PlayerObject) {
 
 class $modify(PlayLayer) {
 	void playEndAnimationToPos(CCPoint p0) {
-		if (m_player1)
-			reinterpret_cast<WaveTrailFixPlayerObject *>(m_player1)->m_waveTrail->addPoint(m_player1->m_position); 
-		if (m_player2)
-			reinterpret_cast<WaveTrailFixPlayerObject *>(m_player2)->m_waveTrail->addPoint(m_player2->m_position); 
+		if (m_player1 && m_player1->m_isDart)
+			m_player1->m_waveTrail->addPoint(m_player1->m_position); 
+		if (m_player2 && m_player2->m_isDart)
+			m_player2->m_waveTrail->addPoint(m_player2->m_position); 
 		PlayLayer::playEndAnimationToPos(p0);
 	}
 };
