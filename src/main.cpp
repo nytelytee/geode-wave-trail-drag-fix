@@ -54,6 +54,12 @@ class $modify(WaveTrailFixPlayerObject, PlayerObject) {
 	}
 
 	void placeStreakPoint() { if (!m_isDart || !m_gameLayer) PlayerObject::placeStreakPoint(); }
+
+	void toggleVisibility(bool p0) {
+		bool needs_point = m_isHidden;
+		PlayerObject::toggleVisibility(p0);
+		if (p0 && m_isDart && needs_point) m_waveTrail->addPoint(m_position); 
+	}
 };
 
 class $modify(PlayLayer) {
