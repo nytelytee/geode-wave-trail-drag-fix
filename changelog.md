@@ -1,3 +1,7 @@
+# v1.1.7
+
+- fix teleport portal regression
+
 # v1.1.6
 
 - fix the trail showing up in the editor when the player reverses direction

@@ -58,7 +58,12 @@ class $modify(PlayerObject) {
 			// over another (the an unchanged direction being detected as a change in direction over a long period of time)
 			m_fields->prev_position = current_position;
 		}
-		else if (m_fields->dont_add) m_fields->dont_add = false;
+		else if (m_fields->dont_add) {
+			m_fields->dont_add = false;
+			// also update the position if we overrode the addition of a point
+			// (in the case of teleport portals)
+			m_fields->prev_position = current_position;
+		}
 	}
 	
 	// teleport portal
