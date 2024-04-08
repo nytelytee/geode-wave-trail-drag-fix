@@ -33,10 +33,10 @@ jobs:
       - name: Build the mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          sdk: nightly
-          #build-config: 'RelWithDebInfo'
+          build-config: 'RelWithDebInfo'
           combine: true
           target: ${{ matrix.config.target }}
+          bindings: nytelytee/bindings
 
   package:
     name: Package builds
@@ -48,5 +48,5 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: Wave Trail Drag Fix
+          name: WaveTrailDragFix
           path: ${{ steps.build.outputs.build-output }}

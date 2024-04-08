@@ -1,3 +1,10 @@
+# v1.2.0
+
+- fix behavior with spider orbs
+- fix the wave trail looking bad if you have Click Between Frames installed
+- fix practice mode bug when the player is hidden
+- try to make wave trail more accurate when colliding with blocks
+
 # v1.1.7
 
 - fix teleport portal regression
