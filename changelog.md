@@ -1,3 +1,9 @@
+# v1.2.2
+
+- fix crashes on some levels which teleport you instantly as soon as the level starts
+- make the wave trail correct on levels which teleport you instantly as soon as the level starts
+- fix the wave trail looking wrong on levels with a start position
+
 # v1.2.1
 
 - add extra checks for whether you are in-game

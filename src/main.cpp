@@ -13,7 +13,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
   bool dontAdd = false;
   bool forceAddSpiderRing = false;
   bool justTeleported = false;
-  bool teleportedPreviously = false;
+  bool teleportedPreviouslySpiderRing = false;
   bool transitionToCollision = false;
   float portalTargetLine;
   CCPoint previousPos{-12, -12};
@@ -44,6 +44,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     PlayerObject::postCollision(p0);
 
     if (LevelEditorLayer::get() || !m_gameLayer) return;
+
     if (!m_isDart || m_isHidden) {
       m_fields->previousPos = m_fields->currentPos;
       return;
@@ -53,35 +54,35 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     CCPoint currentPosition = m_fields->currentPos;
     CCPoint nextPositionNoCollision = m_fields->nextPosNoCollision;
     CCPoint nextPosition = getRealPosition();
-    
-    if (m_fields->forceAdd && !m_fields->forceAddSpiderRing) {
-      m_fields->forceAdd = false;
-      m_waveTrail->addPoint(currentPosition);
-      m_fields->previousPos = currentPosition;
-      return;
-    } else if (m_fields->forceAddSpiderRing && !m_fields->justTeleported) {
-      // spider orb require special care so the line looks straight
-      m_fields->forceAddSpiderRing = false;
-      m_fields->forceAdd = false;
-      m_fields->transitionToCollision = false;
-      m_fields->teleportedPreviously = false;
-      CCPoint pointToAdd = m_isSideways ? CCPoint{nextPosition.x, previousPosition.y} : CCPoint{previousPosition.x, nextPosition.y};
-      m_waveTrail->addPoint(pointToAdd);
-      m_fields->previousPos = pointToAdd;
-      return;
-    } else if (m_fields->justTeleported) {
+
+    if (m_fields->justTeleported) {
       // if we just teleported, we set a streak point to the portal's position and save its location
       // we need to place a new point if we are clicking a spider orb and teleporting at the same time
       // as well
       m_fields->justTeleported = false;
-      m_fields->teleportedPreviously = m_fields->forceAddSpiderRing;
+      m_fields->teleportedPreviouslySpiderRing = m_fields->forceAddSpiderRing;
       m_fields->forceAddSpiderRing = false;
       m_fields->forceAdd = false;
       m_fields->portalTargetLine = m_isSideways ? previousPosition.y : previousPosition.x;
       m_waveTrail->addPoint(previousPosition);
       return;
-    } else if (m_fields->teleportedPreviously) {
-      m_fields->teleportedPreviously = false;
+    } else if (m_fields->forceAdd && !m_fields->forceAddSpiderRing) {
+      m_fields->forceAdd = false;
+      m_waveTrail->addPoint(currentPosition);
+      m_fields->previousPos = currentPosition;
+      return;
+    } else if (m_fields->forceAddSpiderRing) {
+      // spider orb require special care so the line looks straight
+      m_fields->forceAddSpiderRing = false;
+      m_fields->forceAdd = false;
+      m_fields->transitionToCollision = false;
+      m_fields->teleportedPreviouslySpiderRing = false;
+      CCPoint pointToAdd = m_isSideways ? CCPoint{nextPosition.x, previousPosition.y} : CCPoint{previousPosition.x, nextPosition.y};
+      m_waveTrail->addPoint(pointToAdd);
+      m_fields->previousPos = pointToAdd;
+      return;
+    } else if (m_fields->teleportedPreviouslySpiderRing) {
+      m_fields->teleportedPreviouslySpiderRing = false;
       CCPoint pointToAdd = m_isSideways ? CCPoint{nextPosition.x, m_fields->portalTargetLine} : CCPoint{m_fields->portalTargetLine, nextPosition.y};
       m_waveTrail->addPoint(pointToAdd);
       m_fields->previousPos = pointToAdd;
@@ -199,7 +200,9 @@ class $modify(PlayLayer) {
 class $modify(GJBaseGameLayer) {
   void teleportPlayer(TeleportPortalObject *portal, PlayerObject *player) {
     GJBaseGameLayer::teleportPlayer(portal, player);
-    if (!player->m_isDart) return;
+    // no idea why player can be null, but it happened in one level and thus caused a crash
+    // it was a platformer level, if anyone has an explanation, let me know
+    if (LevelEditorLayer::get() || !player || !player->m_isDart) return;
     CCPoint targetPos = getPortalTargetPos(portal, getPortalTarget(portal), player);
     static_cast<WTDFPlayerObject *>(player)->m_fields->previousPos = targetPos;
     static_cast<WTDFPlayerObject *>(player)->m_fields->justTeleported = true;
