@@ -1,3 +1,7 @@
+# v1.2.1
+
+- add extra checks for whether you are in-game
+
 # v1.2.0
 
 - fix behavior with spider orbs

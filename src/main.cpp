@@ -43,7 +43,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
   void postCollision(float p0) {
     PlayerObject::postCollision(p0);
 
-    if (LevelEditorLayer::get()) return;
+    if (LevelEditorLayer::get() || !m_gameLayer) return;
     if (!m_isDart || m_isHidden) {
       m_fields->previousPos = m_fields->currentPos;
       return;
@@ -199,6 +199,7 @@ class $modify(PlayLayer) {
 class $modify(GJBaseGameLayer) {
   void teleportPlayer(TeleportPortalObject *portal, PlayerObject *player) {
     GJBaseGameLayer::teleportPlayer(portal, player);
+    if (!player->m_isDart) return;
     CCPoint targetPos = getPortalTargetPos(portal, getPortalTarget(portal), player);
     static_cast<WTDFPlayerObject *>(player)->m_fields->previousPos = targetPos;
     static_cast<WTDFPlayerObject *>(player)->m_fields->justTeleported = true;
