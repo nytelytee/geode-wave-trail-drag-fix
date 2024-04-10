@@ -15,6 +15,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
   bool justTeleported = false;
   bool teleportedPreviouslySpiderRing = false;
   bool transitionToCollision = false;
+  bool inputChanged = false;
   float portalTargetLine;
   CCPoint previousPos{-12, -12};
   CCPoint currentPos{-12, -12};
@@ -44,7 +45,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     PlayerObject::postCollision(p0);
 
     if (LevelEditorLayer::get() || !m_gameLayer) return;
-
+    
     if (!m_isDart || m_isHidden) {
       m_fields->previousPos = m_fields->currentPos;
       return;
@@ -63,11 +64,13 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       m_fields->teleportedPreviouslySpiderRing = m_fields->forceAddSpiderRing;
       m_fields->forceAddSpiderRing = false;
       m_fields->forceAdd = false;
+      m_fields->inputChanged = false;
       m_fields->portalTargetLine = m_isSideways ? previousPosition.y : previousPosition.x;
       m_waveTrail->addPoint(previousPosition);
       return;
     } else if (m_fields->forceAdd && !m_fields->forceAddSpiderRing) {
       m_fields->forceAdd = false;
+      m_fields->inputChanged = false;
       m_waveTrail->addPoint(currentPosition);
       m_fields->previousPos = currentPosition;
       return;
@@ -75,6 +78,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       // spider orb require special care so the line looks straight
       m_fields->forceAddSpiderRing = false;
       m_fields->forceAdd = false;
+      m_fields->inputChanged = false;
       m_fields->transitionToCollision = false;
       m_fields->teleportedPreviouslySpiderRing = false;
       CCPoint pointToAdd = m_isSideways ? CCPoint{nextPosition.x, previousPosition.y} : CCPoint{previousPosition.x, nextPosition.y};
@@ -83,13 +87,14 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       return;
     } else if (m_fields->teleportedPreviouslySpiderRing) {
       m_fields->teleportedPreviouslySpiderRing = false;
+      m_fields->inputChanged = false;
       CCPoint pointToAdd = m_isSideways ? CCPoint{nextPosition.x, m_fields->portalTargetLine} : CCPoint{m_fields->portalTargetLine, nextPosition.y};
       m_waveTrail->addPoint(pointToAdd);
       m_fields->previousPos = pointToAdd;
       return;
     }
-    cocos2d::CCPoint currentVector = nextPosition - currentPosition;
-    cocos2d::CCPoint previousVector = currentPosition - previousPosition;
+    cocos2d::CCPoint currentVector = (nextPosition - currentPosition).normalize();
+    cocos2d::CCPoint previousVector = (currentPosition - previousPosition).normalize();
     float crossProductMagnitude = abs(currentVector.cross(previousVector));
 
     // save the current point as prevPoint only if it is placed as a streak point
@@ -127,23 +132,41 @@ class $modify(WTDFPlayerObject, PlayerObject) {
         m_waveTrail->addPoint(intersectionPoint);
         m_fields->previousPos = intersectionPoint;
         m_fields->transitionToCollision = true;
-      } else if (nextPosition == nextPositionNoCollision) {
-        m_fields->transitionToCollision = false;
-        m_waveTrail->addPoint(currentPosition);
-        m_fields->previousPos = currentPosition;
       } else {
+        if (nextPosition == nextPositionNoCollision) m_fields->transitionToCollision = false;
         m_waveTrail->addPoint(currentPosition);
         m_fields->previousPos = currentPosition;
+        // removes the last point if the input changed, and it's really close to the previous, and the angle changed sufficiently (higher margin of error allowed than the outer check)
+        // for some reason, Click Between Frames causes an extra point to get added that isn't *quite* at the same angle as the original
+        size_t objectCount = m_waveTrail->m_pointArray->count();
+        if (m_fields->inputChanged && objectCount >= 3) {
+          m_fields->inputChanged = false;
+          CCPoint point0 = static_cast<PointNode *>(m_waveTrail->m_pointArray->objectAtIndex(objectCount - 3))->m_point;
+          CCPoint point1 = static_cast<PointNode *>(m_waveTrail->m_pointArray->objectAtIndex(objectCount - 2))->m_point;
+          CCPoint point2 = static_cast<PointNode *>(m_waveTrail->m_pointArray->objectAtIndex(objectCount - 1))->m_point;
+          CCPoint vector01 = (point1 - point0).normalize();
+          CCPoint vector12 = (point2 - point1).normalize();
+          float cpm = abs(vector12.cross(vector01));
+          if ((cpm <= 0.1 && point2.getDistanceSq(point1) <= 9))
+            m_waveTrail->m_pointArray->removeObjectAtIndex(objectCount - 2);
+        } else if (m_fields->inputChanged) m_fields->inputChanged = false;
       }
     } else if (m_fields->dontAdd) {
+      if (nextPosition == nextPositionNoCollision) m_fields->transitionToCollision = false;
       m_fields->dontAdd = false;
       m_fields->previousPos = currentPosition;
       return;
     }
   }
    
+  void releaseButton(PlayerButton p0) {
+    m_fields->inputChanged = true;
+    PlayerObject::releaseButton(p0);
+  }
+
   // spider orb
   void pushButton(PlayerButton p0) {
+    m_fields->inputChanged = true;
     const int TOGGLE_RING = 1594;
     const int TELEPORT_RING = 3027;
     const int SPIDER_RING = 3004;
