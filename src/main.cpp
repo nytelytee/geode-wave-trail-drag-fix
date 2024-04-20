@@ -11,7 +11,12 @@ class $modify(WTDFPlayerObject, PlayerObject) {
   // this used to be so simple
   bool forceAdd = true;
   bool dontAdd = false;
+
+  // the pad has the same effect as the ring, except it has to be done 1 update later
+  bool spiderPadTriggered = false;
+  bool forceAddSpiderPad = false;
   bool forceAddSpiderRing = false;
+
   bool justTeleported = false;
   bool teleportedPreviouslySpiderRing = false;
   bool transitionToCollision = false;
@@ -26,11 +31,6 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     m_fields->forceAdd = true;
   }
   
-  void activateStreak() {
-    PlayerObject::activateStreak();
-    m_fields->dontAdd = true;
-  }
-
   void update(float p0) {
     // i used to just use m_position as the current position, but apparently that only gets updated once per frame
     // this became really apparent once Click Between Frames came out, so i guess i am going back to doing it this way
@@ -62,18 +62,26 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       m_fields->justTeleported = false;
       m_fields->teleportedPreviouslySpiderRing = m_fields->forceAddSpiderRing;
       m_fields->forceAddSpiderRing = false;
+      m_fields->forceAddSpiderPad = false;
+      m_fields->spiderPadTriggered = false;
       m_fields->forceAdd = false;
       m_fields->portalTargetLine = m_isSideways ? previousPosition.y : previousPosition.x;
       m_waveTrail->addPoint(previousPosition);
       return;
-    } else if (m_fields->forceAdd && !m_fields->forceAddSpiderRing) {
+    } else if (m_fields->forceAdd && !m_fields->forceAddSpiderRing && !m_fields->forceAddSpiderPad) {
       m_fields->forceAdd = false;
       m_waveTrail->addPoint(currentPosition);
       m_fields->previousPos = currentPosition;
       return;
-    } else if (m_fields->forceAddSpiderRing) {
-      // spider orb require special care so the line looks straight
+    } else if (m_fields->spiderPadTriggered) {
+      m_fields->spiderPadTriggered = false;
+      m_fields->forceAddSpiderPad = true;
+      m_fields->previousPos = currentPosition;
+      return;
+    } else if (m_fields->forceAddSpiderRing || m_fields->forceAddSpiderPad) {
+      // spider orbs and pads require special care so the line looks straight
       m_fields->forceAddSpiderRing = false;
+      m_fields->forceAddSpiderPad = false;
       m_fields->forceAdd = false;
       m_fields->transitionToCollision = false;
       m_fields->teleportedPreviouslySpiderRing = false;
@@ -168,6 +176,17 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       m_fields->forceAddSpiderRing = true;
     }
     PlayerObject::pushButton(p0);
+  }
+  
+  // spider pad
+  void spiderTestJump(bool p0) {
+    if (!m_isDart || !m_gameLayer || LevelEditorLayer::get() || m_fields->justTeleported) return PlayerObject::spiderTestJump(p0);
+    m_waveTrail->addPoint(m_fields->currentPos);
+    m_fields->previousPos = m_fields->currentPos;
+    // this runs on both spider orbs and pads triggering
+    // this only needs to have an effect if a pad was triggered specifically
+    if (!m_fields->forceAddSpiderRing) m_fields->spiderPadTriggered = true;
+    PlayerObject::spiderTestJump(p0);
   }
 
   void doReversePlayer(bool p0) {
