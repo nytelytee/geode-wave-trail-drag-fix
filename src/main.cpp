@@ -6,42 +6,49 @@
 using namespace geode::prelude;
 
 class $modify(WTDFPlayerObject, PlayerObject) {
+
+  struct Fields {
   
-  // why is there so much state to keep track of
-  // this used to be so simple
-  bool forceAdd = true;
-  bool dontAdd = false;
+    // why is there so much state to keep track of
+    // this used to be so simple
 
-  // the pad has the same effect as the ring, except it has to be done 1 update later
-  bool spiderPadTriggered = false;
-  bool forceAddSpiderPad = false;
-  bool forceAddSpiderRing = false;
+    // a point would not have been otherwise added, but force it to be added
+    bool forceAdd = true;
 
-  bool justTeleported = false;
-  bool teleportedPreviouslySpiderRing = false;
-  bool transitionToCollision = false;
-  float portalTargetLine;
-  CCPoint previousPos{-12, -12};
-  CCPoint currentPos{-12, -12};
-  CCPoint nextPosNoCollision{-12, -12};
+    // the pad has the same effect as the ring, except it has to be done 1 update later
+    bool spiderPadTriggered = false;
+    // the points that these 2 add are different from standard forceAdd, and they take precedence over it
+    bool forceAddSpiderPad = false;
+    bool forceAddSpiderRing = false;
+
+    bool justTeleported = false;
+    bool teleportedPreviouslySpiderRing = false;
+    bool transitionToCollision = false;
+    bool prevWasOnSlope = false;
+    float portalTargetLine;
+    CCPoint previousPos{-12, -12};
+    CCPoint currentPos{-12, -12};
+    CCPoint nextPosNoCollision{-12, -12};
+  };
 
   void resetObject() {
     m_waveTrail->reset();
     PlayerObject::resetObject();
-    m_fields->forceAdd = true;
   }
   
-  void update(float p0) {
+  void update(float deltaTime) {
     // i used to just use m_position as the current position, but apparently that only gets updated once per frame
     // this became really apparent once Click Between Frames came out, so i guess i am going back to doing it this way
     // i would have had to do this anyway to get nextPosNoCollision, so yeah
     m_fields->currentPos = getRealPosition();
-    PlayerObject::update(p0);
+    PlayerObject::update(deltaTime);
     m_fields->nextPosNoCollision = getRealPosition();
+
+    if (LevelEditorLayer::get() || !m_gameLayer) return;
   }
 
-  void postCollision(float p0) {
-    PlayerObject::postCollision(p0);
+  void postCollision(float deltaTime) {
+    PlayerObject::postCollision(deltaTime);
 
     if (LevelEditorLayer::get() || !m_gameLayer) return;
     
@@ -55,6 +62,9 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     CCPoint nextPositionNoCollision = m_fields->nextPosNoCollision;
     CCPoint nextPosition = getRealPosition();
 
+    bool prevWasOnSlope = m_fields->prevWasOnSlope;
+    m_fields->prevWasOnSlope = m_wasOnSlope;
+
     if (m_fields->justTeleported) {
       // if we just teleported, we set a streak point to the portal's position and save its location
       // we need to place a new point if we are clicking a spider orb and teleporting at the same time
@@ -66,11 +76,11 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       m_fields->spiderPadTriggered = false;
       m_fields->forceAdd = false;
       m_fields->portalTargetLine = m_isSideways ? previousPosition.y : previousPosition.x;
-      m_waveTrail->addPoint(previousPosition);
+      addWaveTrailPoint(previousPosition);
       return;
     } else if (m_fields->forceAdd && !m_fields->forceAddSpiderRing && !m_fields->forceAddSpiderPad) {
       m_fields->forceAdd = false;
-      m_waveTrail->addPoint(currentPosition);
+      addWaveTrailPoint(currentPosition);
       m_fields->previousPos = currentPosition;
       return;
     } else if (m_fields->spiderPadTriggered) {
@@ -86,19 +96,47 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       m_fields->transitionToCollision = false;
       m_fields->teleportedPreviouslySpiderRing = false;
       CCPoint pointToAdd = m_isSideways ? CCPoint{nextPosition.x, previousPosition.y} : CCPoint{previousPosition.x, nextPosition.y};
-      m_waveTrail->addPoint(pointToAdd);
+      addWaveTrailPoint(pointToAdd);
       m_fields->previousPos = pointToAdd;
       return;
     } else if (m_fields->teleportedPreviouslySpiderRing) {
       m_fields->teleportedPreviouslySpiderRing = false;
       CCPoint pointToAdd = m_isSideways ? CCPoint{nextPosition.x, m_fields->portalTargetLine} : CCPoint{m_fields->portalTargetLine, nextPosition.y};
-      m_waveTrail->addPoint(pointToAdd);
+      addWaveTrailPoint(pointToAdd);
       m_fields->previousPos = pointToAdd;
       return;
     }
+
+    // 'teleport slopes' (stacked slopes that teleport the player)
+    // don't work normally, this is a special case for them
+    // prevWasOnSlope is required so that this doesn't fire
+    // when on top of a slope, which rapidly collides/uncollides
+    // with the slope every update
+    // this also fires if you just collide with a slope normally
+    // but that doesn't mess anything up too badly
+    if (m_isOnSlope && !m_wasOnSlope && !prevWasOnSlope) {
+      CCPoint pointToAdd{nextPosition.x, currentPosition.y};
+      addWaveTrailPoint(pointToAdd);
+      m_fields->previousPos = pointToAdd;
+      // force the add on the next update, when the player actually
+      // gets teleported to the top of the slope stack, so, a line from
+      // the point where the player hit the slope stack, to the top of the
+      // slope stack
+      m_fields->forceAdd = true;
+      return;
+    }
+
     cocos2d::CCPoint currentVector = (nextPosition - currentPosition).normalize();
     cocos2d::CCPoint previousVector = (currentPosition - previousPosition).normalize();
     float crossProductMagnitude = abs(currentVector.cross(previousVector));
+    
+    // make the error margin inversely proportional to the delta time
+    // if 2 updates are extremely close together calculating the angle between them may lead to inaccuracies
+    // making the error margin larger the closer 2 updates are makes the chance of a false positive smaller
+    // for some reason, deltaTime always seems to be 0.25 even with physics bypass set to something other
+    // than 240. the only time that it isn't 0.25 is when click between frames sends its updates.
+    // this is kind of weird, i would expect physics bypass to affect this, but i guess not
+    float errorMargin = 0.004/deltaTime;
 
     // save the current point as prevPoint only if it is placed as a streak point
     // this makes it so that even smooth paths where
@@ -113,47 +151,68 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     // basically, this trades off accounting for one type of cumulative error
     // (slowly moving smooth transitions not being detected as actually changing moving)
     // over another (the an unchanged direction being detected as a change in direction over a long period of time)
-
-    if (crossProductMagnitude > 0.01 && !m_fields->dontAdd) {
-      if (nextPosition != nextPositionNoCollision && !m_fields->transitionToCollision) {
-        if (m_isSideways) {
-          std::swap(nextPositionNoCollision.x, nextPositionNoCollision.y);
-          std::swap(nextPosition.x, nextPosition.y);
-          std::swap(currentPosition.x, currentPosition.y);
-        }
-        float intercept = (nextPositionNoCollision.y - currentPosition.y)/(nextPositionNoCollision.x - currentPosition.x);
-        float desiredValue = (nextPosition.y - currentPosition.y + intercept * currentPosition.x)/intercept;
-        if ((desiredValue < currentPosition.x && !m_isGoingLeft) || (desiredValue > currentPosition.x && m_isGoingLeft))
-          desiredValue = currentPosition.x;
-        CCPoint intersectionPoint{desiredValue, nextPosition.y};
-        if (m_isSideways) {
-          std::swap(nextPositionNoCollision.x, nextPositionNoCollision.y);
-          std::swap(nextPosition.x, nextPosition.y);
-          std::swap(currentPosition.x, currentPosition.y);
-          std::swap(intersectionPoint.x, intersectionPoint.y);
-        }
-        m_waveTrail->addPoint(intersectionPoint);
-        m_fields->previousPos = intersectionPoint;
-        m_fields->transitionToCollision = true;
-      } else {
-        if (nextPosition == nextPositionNoCollision) m_fields->transitionToCollision = false;
-        m_waveTrail->addPoint(currentPosition);
-        m_fields->previousPos = currentPosition;
+    if (crossProductMagnitude <= errorMargin) return;
+    
+    if (nextPosition != nextPositionNoCollision && !m_fields->transitionToCollision) {
+      // if the player is supposed to land on a block between 2 updates, this calculates
+      // where the player would have landed, and adds that as a point rather than the current position
+      if (m_isSideways) {
+        std::swap(nextPositionNoCollision.x, nextPositionNoCollision.y);
+        std::swap(nextPosition.x, nextPosition.y);
+        std::swap(currentPosition.x, currentPosition.y);
       }
-    } else if (m_fields->dontAdd) {
+      float intercept = (nextPositionNoCollision.y - currentPosition.y)/(nextPositionNoCollision.x - currentPosition.x);
+      float desiredValue = (nextPosition.y - currentPosition.y + intercept * currentPosition.x)/intercept;
+      // this happens if the player snapped to an object
+      if (
+        (desiredValue < currentPosition.x && !m_isGoingLeft) ||
+        (desiredValue > currentPosition.x && m_isGoingLeft)
+      ) {
+        // draw a vertical if the player snapped
+        if (!m_isOnSlope && !m_wasOnSlope && !prevWasOnSlope) addWaveTrailPoint(currentPosition);
+        desiredValue = currentPosition.x;
+      }
+      CCPoint intersectionPoint{desiredValue, nextPosition.y};
+      if (m_isSideways) {
+        std::swap(nextPositionNoCollision.x, nextPositionNoCollision.y);
+        std::swap(nextPosition.x, nextPosition.y);
+        std::swap(currentPosition.x, currentPosition.y);
+        std::swap(intersectionPoint.x, intersectionPoint.y);
+      }
+      addWaveTrailPoint(intersectionPoint);
+      m_fields->previousPos = intersectionPoint;
+      m_fields->transitionToCollision = true;
+    } else {
       if (nextPosition == nextPositionNoCollision) m_fields->transitionToCollision = false;
-      m_fields->dontAdd = false;
+      addWaveTrailPoint(currentPosition);
       m_fields->previousPos = currentPosition;
-      return;
     }
+    
+  }
+
+  // this will add the requested point to the wave trail, and check if it is (almost) colinear with the last 2 points
+  // if it is, it will remove the last point before adding the requested one, because there is no need to have a
+  // colinear duplicate
+  inline void addWaveTrailPoint(CCPoint point) {
+    size_t objectCount = m_waveTrail->m_pointArray->count();
+    if (objectCount >= 3) {
+      CCPoint point0 = static_cast<PointNode *>(m_waveTrail->m_pointArray->objectAtIndex(objectCount - 2))->m_point;
+      CCPoint point1 = static_cast<PointNode *>(m_waveTrail->m_pointArray->objectAtIndex(objectCount - 1))->m_point;
+      CCPoint point2 = point;
+      CCPoint vector01 = (point1 - point0).normalize();
+      CCPoint vector12 = (point2 - point1).normalize();
+      float cpm = abs(vector12.cross(vector01));
+      if (cpm <= 0.001) m_waveTrail->m_pointArray->removeObjectAtIndex(objectCount - 1);
+    }
+    m_waveTrail->addPoint(point);
   }
   
   // spider orb
-  void pushButton(PlayerButton p0) {
+  void pushButton(PlayerButton button) {
     const int TOGGLE_RING = 1594;
     const int TELEPORT_RING = 3027;
     const int SPIDER_RING = 3004;
-    if (!m_isDart || !m_gameLayer || LevelEditorLayer::get()) return PlayerObject::pushButton(p0);
+    if (!m_isDart || !m_gameLayer || LevelEditorLayer::get()) return PlayerObject::pushButton(button);
     bool willTriggerSpiderRing = false;
     
     for (size_t i = 0; i < m_touchingRings->count(); i++) {
@@ -161,13 +220,13 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       switch (ring->m_objectID) {
         // these 2 seem to allow the click to reach the next ring
         case TOGGLE_RING:  // fallthrough
-          if (ring->m_claimTouch) return PlayerObject::pushButton(p0);
+          if (ring->m_claimTouch) return PlayerObject::pushButton(button);
         case TELEPORT_RING:
           continue;
         case SPIDER_RING: // fallthrough
           willTriggerSpiderRing = true; // will trigger unless a toggle ring claims the touch
         default:
-          if (!willTriggerSpiderRing) return PlayerObject::pushButton(p0);
+          if (!willTriggerSpiderRing) return PlayerObject::pushButton(button);
       }
     }
     if (willTriggerSpiderRing) {
@@ -175,7 +234,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       m_fields->previousPos = m_fields->currentPos;
       m_fields->forceAddSpiderRing = true;
     }
-    PlayerObject::pushButton(p0);
+    PlayerObject::pushButton(button);
   }
   
   // spider pad
@@ -189,32 +248,32 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     PlayerObject::spiderTestJump(p0);
   }
 
-  void doReversePlayer(bool p0) {
+  void doReversePlayer(bool state) {
     m_fields->forceAdd = true;
-    PlayerObject::doReversePlayer(p0);
+    PlayerObject::doReversePlayer(state);
   }
 
   void placeStreakPoint() { if (!m_isDart || !m_gameLayer) PlayerObject::placeStreakPoint(); }
 
-  void toggleVisibility(bool p0) {
+  void toggleVisibility(bool state) {
     bool needsPoint = m_isHidden;
-    PlayerObject::toggleVisibility(p0);
-    if (p0 && m_isDart && needsPoint) m_fields->forceAdd = true;
+    PlayerObject::toggleVisibility(state);
+    if (state && m_isDart && needsPoint) m_fields->forceAdd = true;
   }
 };
 
 class $modify(PlayLayer) {
-  void playEndAnimationToPos(CCPoint p0) {
+  void playEndAnimationToPos(CCPoint pos) {
     if (m_player1 && m_player1->m_isDart)
-      m_player1->m_waveTrail->addPoint(m_player1->m_position); 
+      m_player1->m_waveTrail->addPoint(m_player1->getRealPosition()); 
     if (m_player2 && m_player2->m_isDart)
-      m_player2->m_waveTrail->addPoint(m_player2->m_position); 
-    PlayLayer::playEndAnimationToPos(p0);
+      m_player2->m_waveTrail->addPoint(m_player2->getRealPosition());
+    PlayLayer::playEndAnimationToPos(pos);
   }
 };
 
-// teleport portal
 class $modify(GJBaseGameLayer) {
+  // teleport portal
   void teleportPlayer(TeleportPortalObject *portal, PlayerObject *player) {
     GJBaseGameLayer::teleportPlayer(portal, player);
     // no idea why player can be null, but it happened in one level and thus caused a crash
@@ -223,6 +282,16 @@ class $modify(GJBaseGameLayer) {
     CCPoint targetPos = getPortalTargetPos(portal, getPortalTarget(portal), player);
     static_cast<WTDFPlayerObject *>(player)->m_fields->previousPos = targetPos;
     static_cast<WTDFPlayerObject *>(player)->m_fields->justTeleported = true;
-    static_cast<WTDFPlayerObject *>(player)->m_fields->dontAdd = true;
+  }
+
+  void toggleDualMode(GameObject* portal, bool state, PlayerObject* playerTouchingPortal, bool p4) {
+    if (!state && playerTouchingPortal == m_player2) {
+      // player 2 will become player 1 after the original executes, so copy the fields from player 2 and add them to player 1 afterward
+      WTDFPlayerObject::Fields fieldsBackup = *static_cast<WTDFPlayerObject *>(m_player2)->m_fields.operator->();
+      GJBaseGameLayer::toggleDualMode(portal, state, playerTouchingPortal, p4);
+      *static_cast<WTDFPlayerObject *>(m_player1)->m_fields.operator->() = fieldsBackup;
+    } else {
+      GJBaseGameLayer::toggleDualMode(portal, state, playerTouchingPortal, p4);
+    }
   }
 };
