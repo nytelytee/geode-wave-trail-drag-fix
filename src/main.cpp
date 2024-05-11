@@ -5,6 +5,7 @@
 
 using namespace geode::prelude;
 
+
 class $modify(WTDFPlayerObject, PlayerObject) {
 
   struct Fields {
@@ -29,22 +30,30 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     CCPoint previousPos{-12, -12};
     CCPoint currentPos{-12, -12};
     CCPoint nextPosNoCollision{-12, -12};
+    
+    // slopes aren't stored in m_collidedObject for some reason
+    GameObject* collidedSlope = nullptr;
+    
   };
 
   void resetObject() {
+    WTDFPlayerObject::Fields defaultFields;
+    *m_fields.operator->() = defaultFields;
     m_waveTrail->reset();
     PlayerObject::resetObject();
   }
   
+  bool preSlopeCollision(float p0, GameObject* p1) {
+    bool value = PlayerObject::preSlopeCollision(p0, p1);
+    if (!value) m_fields->collidedSlope = p1;
+    return value;
+  }
+  
   void update(float deltaTime) {
-    // i used to just use m_position as the current position, but apparently that only gets updated once per frame
-    // this became really apparent once Click Between Frames came out, so i guess i am going back to doing it this way
-    // i would have had to do this anyway to get nextPosNoCollision, so yeah
     m_fields->currentPos = getRealPosition();
     PlayerObject::update(deltaTime);
     m_fields->nextPosNoCollision = getRealPosition();
-
-    if (LevelEditorLayer::get() || !m_gameLayer) return;
+    m_fields->collidedSlope = nullptr;
   }
 
   void postCollision(float deltaTime) {
@@ -107,25 +116,6 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       return;
     }
 
-    // 'teleport slopes' (stacked slopes that teleport the player)
-    // don't work normally, this is a special case for them
-    // prevWasOnSlope is required so that this doesn't fire
-    // when on top of a slope, which rapidly collides/uncollides
-    // with the slope every update
-    // this also fires if you just collide with a slope normally
-    // but that doesn't mess anything up too badly
-    if (m_isOnSlope && !m_wasOnSlope && !prevWasOnSlope) {
-      CCPoint pointToAdd{nextPosition.x, currentPosition.y};
-      addWaveTrailPoint(pointToAdd);
-      m_fields->previousPos = pointToAdd;
-      // force the add on the next update, when the player actually
-      // gets teleported to the top of the slope stack, so, a line from
-      // the point where the player hit the slope stack, to the top of the
-      // slope stack
-      m_fields->forceAdd = true;
-      return;
-    }
-
     cocos2d::CCPoint currentVector = (nextPosition - currentPosition).normalize();
     cocos2d::CCPoint previousVector = (currentPosition - previousPosition).normalize();
     float crossProductMagnitude = abs(currentVector.cross(previousVector));
@@ -154,9 +144,28 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     if (crossProductMagnitude <= errorMargin) return;
     
     if (nextPosition != nextPositionNoCollision && !m_fields->transitionToCollision) {
+
       // if the player is supposed to land on a block between 2 updates, this calculates
-      // where the player would have landed, and adds that as a point rather than the current position
+      // where the player would have landed, and adds that as a point rather than the current position.
+      // this algorithm is technically incorrect on slopes, but it works well enough.
+      // trying to make it correct on slopes causes more problems than it solves.
+      // see the unfinished 'slope' branch if you want to see my attempt at it,
+      // where i ended up giving up
+      
+      float objectBoundMin = std::numeric_limits<float>::lowest();
+      float objectBoundMax = std::numeric_limits<float>::max();
+      float hitboxSizeProbably = getObjectRect().size.width;
+      GameObject *object = m_collidedObject ? m_collidedObject : m_fields->collidedSlope;
+      if (object) {
+        objectBoundMin = object->getObjectRect().getMinX(); 
+        objectBoundMax = object->getObjectRect().getMaxX(); 
+      }
+
       if (m_isSideways) {
+        if (object) {
+          objectBoundMin = object->getObjectRect().getMinY(); 
+          objectBoundMax = object->getObjectRect().getMaxY(); 
+        }
         std::swap(nextPositionNoCollision.x, nextPositionNoCollision.y);
         std::swap(nextPosition.x, nextPosition.y);
         std::swap(currentPosition.x, currentPosition.y);
@@ -166,10 +175,13 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       // this happens if the player snapped to an object
       if (
         (desiredValue < currentPosition.x && !m_isGoingLeft) ||
-        (desiredValue > currentPosition.x && m_isGoingLeft)
+        (desiredValue > currentPosition.x && m_isGoingLeft) ||
+        (currentPosition.x + hitboxSizeProbably/2 < objectBoundMin && !m_isGoingLeft) ||
+        (currentPosition.x - hitboxSizeProbably/2 > objectBoundMax && m_isGoingLeft)
       ) {
         // draw a vertical if the player snapped
-        if (!m_isOnSlope && !m_wasOnSlope && !prevWasOnSlope) addWaveTrailPoint(currentPosition);
+        if (m_isSideways) addWaveTrailPoint({currentPosition.y, currentPosition.x});
+        else addWaveTrailPoint(currentPosition);
         desiredValue = currentPosition.x;
       }
       CCPoint intersectionPoint{desiredValue, nextPosition.y};
