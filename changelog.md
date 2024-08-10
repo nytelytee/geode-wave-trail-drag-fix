@@ -1,3 +1,7 @@
+# v1.2.8
+- update to 2.206
+  - spider orb and teleportation at the same time are broken for now
+
 # v1.2.7
 - slightly better interaction with slopes
 

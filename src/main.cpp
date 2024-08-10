@@ -25,7 +25,6 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     bool justTeleported = false;
     bool teleportedPreviouslySpiderRing = false;
     bool transitionToCollision = false;
-    bool prevWasOnSlope = false;
     float portalTargetLine;
     CCPoint previousPos{-12, -12};
     CCPoint currentPos{-12, -12};
@@ -71,8 +70,6 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     CCPoint nextPositionNoCollision = m_fields->nextPosNoCollision;
     CCPoint nextPosition = getRealPosition();
 
-    bool prevWasOnSlope = m_fields->prevWasOnSlope;
-    m_fields->prevWasOnSlope = m_wasOnSlope;
 
     if (m_fields->justTeleported) {
       // if we just teleported, we set a streak point to the portal's position and save its location
@@ -127,6 +124,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     // than 240. the only time that it isn't 0.25 is when click between frames sends its updates.
     // this is kind of weird, i would expect physics bypass to affect this, but i guess not
     float errorMargin = 0.004/deltaTime;
+    log::info("{}", deltaTime);
 
     // save the current point as prevPoint only if it is placed as a streak point
     // this makes it so that even smooth paths where
@@ -206,7 +204,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
   // if it is, it will remove the last point before adding the requested one, because there is no need to have a
   // colinear duplicate
   inline void addWaveTrailPoint(CCPoint point) {
-    size_t objectCount = m_waveTrail->m_pointArray->count();
+    unsigned objectCount = static_cast<unsigned>(m_waveTrail->m_pointArray->count());
     if (objectCount >= 3) {
       CCPoint point0 = static_cast<PointNode *>(m_waveTrail->m_pointArray->objectAtIndex(objectCount - 2))->m_point;
       CCPoint point1 = static_cast<PointNode *>(m_waveTrail->m_pointArray->objectAtIndex(objectCount - 1))->m_point;
@@ -227,7 +225,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     if (!m_isDart || !m_gameLayer || LevelEditorLayer::get()) return PlayerObject::pushButton(button);
     bool willTriggerSpiderRing = false;
     
-    for (size_t i = 0; i < m_touchingRings->count(); i++) {
+    for (unsigned i = 0; i < m_touchingRings->count(); i++) {
       RingObject *ring = static_cast<RingObject *>(m_touchingRings->objectAtIndex(i));
       switch (ring->m_objectID) {
         // these 2 seem to allow the click to reach the next ring
@@ -285,7 +283,12 @@ class $modify(PlayLayer) {
 };
 
 class $modify(GJBaseGameLayer) {
-  // teleport portal
+  // teleport portal, does not work because getPortalTarget and getPortalTargetPos are inlined
+  // in 2.206, and i am too lazy to find a different way to do this at the moment.
+  // the only thing that will break, i think, is teleporting and activating a spider orb
+  // at the same time, which is not *too* much of a concern, but i would still like to fix it
+  // some time.
+  /*
   void teleportPlayer(TeleportPortalObject *portal, PlayerObject *player) {
     GJBaseGameLayer::teleportPlayer(portal, player);
     // no idea why player can be null, but it happened in one level and thus caused a crash
@@ -295,6 +298,7 @@ class $modify(GJBaseGameLayer) {
     static_cast<WTDFPlayerObject *>(player)->m_fields->previousPos = targetPos;
     static_cast<WTDFPlayerObject *>(player)->m_fields->justTeleported = true;
   }
+  */
 
   void toggleDualMode(GameObject* portal, bool state, PlayerObject* playerTouchingPortal, bool p4) {
     if (!state && playerTouchingPortal == m_player2) {
