@@ -124,7 +124,6 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     // than 240. the only time that it isn't 0.25 is when click between frames sends its updates.
     // this is kind of weird, i would expect physics bypass to affect this, but i guess not
     float errorMargin = 0.004/deltaTime;
-    log::info("{}", deltaTime);
 
     // save the current point as prevPoint only if it is placed as a streak point
     // this makes it so that even smooth paths where
