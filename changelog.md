@@ -1,4 +1,8 @@
-# v1.2.8
+# v1.4.0
+- update to 2.2074
+- fix teleportation
+
+# v1.3.0
 - update to 2.206
   - spider orb and teleportation at the same time are broken for now
 

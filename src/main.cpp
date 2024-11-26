@@ -48,15 +48,15 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     return value;
   }
   
-  void update(float deltaTime) {
+  void update(float deltaFactor) {
     m_fields->currentPos = getRealPosition();
-    PlayerObject::update(deltaTime);
+    PlayerObject::update(deltaFactor);
     m_fields->nextPosNoCollision = getRealPosition();
     m_fields->collidedSlope = nullptr;
   }
 
-  void postCollision(float deltaTime) {
-    PlayerObject::postCollision(deltaTime);
+  void postCollision(float deltaFactor) {
+    PlayerObject::postCollision(deltaFactor);
 
     if (LevelEditorLayer::get() || !m_gameLayer) return;
     
@@ -117,13 +117,9 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     cocos2d::CCPoint previousVector = (currentPosition - previousPosition).normalize();
     float crossProductMagnitude = abs(currentVector.cross(previousVector));
     
-    // make the error margin inversely proportional to the delta time
+    // make the error margin inversely proportional to the delta factor
     // if 2 updates are extremely close together calculating the angle between them may lead to inaccuracies
-    // making the error margin larger the closer 2 updates are makes the chance of a false positive smaller
-    // for some reason, deltaTime always seems to be 0.25 even with physics bypass set to something other
-    // than 240. the only time that it isn't 0.25 is when click between frames sends its updates.
-    // this is kind of weird, i would expect physics bypass to affect this, but i guess not
-    float errorMargin = 0.004/deltaTime;
+    float errorMargin = 0.004/deltaFactor;
 
     // save the current point as prevPoint only if it is placed as a streak point
     // this makes it so that even smooth paths where
@@ -217,7 +213,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
   }
   
   // spider orb
-  void pushButton(PlayerButton button) {
+  bool pushButton(PlayerButton button) {
     const int TOGGLE_RING = 1594;
     const int TELEPORT_RING = 3027;
     const int SPIDER_RING = 3004;
@@ -243,7 +239,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       m_fields->previousPos = m_fields->currentPos;
       m_fields->forceAddSpiderRing = true;
     }
-    PlayerObject::pushButton(button);
+    return PlayerObject::pushButton(button);
   }
   
   // spider pad
@@ -282,22 +278,15 @@ class $modify(PlayLayer) {
 };
 
 class $modify(GJBaseGameLayer) {
-  // teleport portal, does not work because getPortalTarget and getPortalTargetPos are inlined
-  // in 2.206, and i am too lazy to find a different way to do this at the moment.
-  // the only thing that will break, i think, is teleporting and activating a spider orb
-  // at the same time, which is not *too* much of a concern, but i would still like to fix it
-  // some time.
-  /*
   void teleportPlayer(TeleportPortalObject *portal, PlayerObject *player) {
     GJBaseGameLayer::teleportPlayer(portal, player);
     // no idea why player can be null, but it happened in one level and thus caused a crash
     // it was a platformer level, if anyone has an explanation, let me know
     if (LevelEditorLayer::get() || !player || !player->m_isDart) return;
-    CCPoint targetPos = getPortalTargetPos(portal, getPortalTarget(portal), player);
-    static_cast<WTDFPlayerObject *>(player)->m_fields->previousPos = targetPos;
+    static_cast<WTDFPlayerObject *>(player)->m_fields->previousPos = player->getRealPosition();
     static_cast<WTDFPlayerObject *>(player)->m_fields->justTeleported = true;
   }
-  */
+  
 
   void toggleDualMode(GameObject* portal, bool state, PlayerObject* playerTouchingPortal, bool p4) {
     if (!state && playerTouchingPortal == m_player2) {

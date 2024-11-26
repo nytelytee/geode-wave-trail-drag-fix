@@ -1,11 +1,12 @@
 {
-  "geode": "3.4.0",
-  "gd": {"android": "2.206", "win": "2.206"},
-  "version": "v1.3.0",
+  "geode": "4.0.1",
+  "gd": {"android": "2.2074", "win": "2.2074"},
+  "version": "v1.4.0",
   "id": "nytelyte.wave_trail_drag_fix",
   "name": "Wave Trail Drag Fix",
   "developer": "NyteLyte",
   "description": "Fix the wave trail being buggy on D blocks.",
   "repository": "https://github.com/nytelytee/geode-wave-trail-drag-fix",
-  "resources": {"files": ["resources/examples/with.png", "resources/examples/without.png"]}
+  "resources": {"files": ["resources/examples/with.png", "resources/examples/without.png"]},
+  "tags": ["offline", "bugfix", "enhancement"]
 }
