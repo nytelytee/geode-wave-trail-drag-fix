@@ -1,3 +1,7 @@
+# v1.4.1
+- fix teleport trigger + spider orb interaction
+  - credit: hiimjustin000 for identifying the cause
+
 # v1.4.0
 - update to 2.2074
 - fix teleportation

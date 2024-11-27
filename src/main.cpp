@@ -280,9 +280,11 @@ class $modify(PlayLayer) {
 class $modify(GJBaseGameLayer) {
   void teleportPlayer(TeleportPortalObject *portal, PlayerObject *player) {
     GJBaseGameLayer::teleportPlayer(portal, player);
-    // no idea why player can be null, but it happened in one level and thus caused a crash
-    // it was a platformer level, if anyone has an explanation, let me know
-    if (LevelEditorLayer::get() || !player || !player->m_isDart) return;
+    // teleport trigger passes the player as null, the original function falls back to player 1
+    // this does mean that the teleport trigger does not let you teleport player 2. lol.
+    // thank you hiimjustin000 for identifying the case where player can be null
+    if (!player) player = m_player1;
+    if (LevelEditorLayer::get() || !player->m_isDart) return;
     static_cast<WTDFPlayerObject *>(player)->m_fields->previousPos = player->getRealPosition();
     static_cast<WTDFPlayerObject *>(player)->m_fields->justTeleported = true;
   }
