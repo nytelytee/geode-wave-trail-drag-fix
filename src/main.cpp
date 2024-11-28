@@ -33,7 +33,17 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     // slopes aren't stored in m_collidedObject for some reason
     GameObject* collidedSlope = nullptr;
     
+    // Click Between Frames messes with the delta factor when collision checking
+    // so we fetch it from PlayerObject::update and use that inside
+    // PlayerObject::postCollision instead of the one passed to it
+    float deltaFactor = 0;
   };
+
+  static void onModify(auto& self) {
+    Result res = self.setHookPriorityAfter("PlayerObject::update", "syzzi.click_between_frames");
+    if (!res && res != Err("Mod not found"))
+      log::error("Failed to set hook priority of PlayerObject::update.");
+  }
 
   void resetObject() {
     WTDFPlayerObject::Fields defaultFields;
@@ -53,6 +63,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     PlayerObject::update(deltaFactor);
     m_fields->nextPosNoCollision = getRealPosition();
     m_fields->collidedSlope = nullptr;
+    m_fields->deltaFactor = deltaFactor;
   }
 
   void postCollision(float deltaFactor) {
@@ -119,7 +130,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     
     // make the error margin inversely proportional to the delta factor
     // if 2 updates are extremely close together calculating the angle between them may lead to inaccuracies
-    float errorMargin = 0.004/deltaFactor;
+    float errorMargin = 0.004/m_fields->deltaFactor;
 
     // save the current point as prevPoint only if it is placed as a streak point
     // this makes it so that even smooth paths where

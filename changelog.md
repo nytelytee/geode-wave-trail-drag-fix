@@ -1,3 +1,6 @@
+# v1.4.2
+- fix the doubling up points with Click Between Frames (again)
+
 # v1.4.1
 - fix teleport trigger + spider orb interaction
   - credit: hiimjustin000 for identifying the cause

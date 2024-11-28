@@ -1,7 +1,7 @@
 {
   "geode": "4.0.1",
   "gd": {"android": "2.2074", "win": "2.2074"},
-  "version": "v1.4.1",
+  "version": "v1.4.2",
   "id": "nytelyte.wave_trail_drag_fix",
   "name": "Wave Trail Drag Fix",
   "developer": "NyteLyte",
