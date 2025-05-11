@@ -1,9 +1,14 @@
+# v1.4.3
+- fix issues with noclip
+  - credit: syzzi for discovering the fix
+- fix wave trail connecting teleport portals if teleported on the first update
+
 # v1.4.2
 - fix the doubling up points with Click Between Frames (again)
 
 # v1.4.1
 - fix teleport trigger + spider orb interaction
-  - credit: hiimjustin000 for identifying the cause
+  - credit: hiimjasmine00 for identifying the cause
 
 # v1.4.0
 - update to 2.2074
