@@ -77,6 +77,15 @@ class $modify(WTDFPlayerObject, PlayerObject) {
 
     if (!m_isDart || m_isHidden) {
       m_fields->previousPos = m_fields->currentPos;
+      // reset all of this other state to fix weird issues like saving a value of justTeleported, transitioning
+      // into a non-wave gamemode, and then transitioning into a wave gamemode upon teleportation again,
+      // causing the portals to be connected because the state was erroneously saved
+      m_fields->justTeleported = false;
+      m_fields->teleportedPreviouslySpiderRing = false;
+      m_fields->forceAddSpiderRing = false;
+      m_fields->forceAddSpiderPad = false;
+      m_fields->spiderPadTriggered = false;
+      m_fields->forceAdd = false;
       return;
     }
 

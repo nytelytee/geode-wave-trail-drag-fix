@@ -1,3 +1,6 @@
+# v1.4.4
+- fix wave trail connecting teleport portals in some weird situations
+
 # v1.4.3
 - fix issues with noclip
   - credit: syzzi for discovering the fix
