@@ -12,6 +12,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
 
     // why is there so much state to keep track of
     // this used to be so simple
+    bool gotHereFromUpdate = false;
 
     // a point would not have been otherwise added, but force it to be added
     bool forceAdd = true;
@@ -60,6 +61,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
 
   void update(float deltaFactor) {
     m_fields->currentPos = getRealPosition();
+    m_fields->gotHereFromUpdate = true;
     PlayerObject::update(deltaFactor);
     m_fields->nextPosNoCollision = getRealPosition();
     m_fields->collidedSlope = nullptr;
@@ -68,12 +70,13 @@ class $modify(WTDFPlayerObject, PlayerObject) {
 
   // hook updateRotation instead of postCollision; updateRotation happens after postCollision, so postCollision is done at that point.
   // this fixes the issue of postCollision not being called if the player is noclipping, thus preventing the wave trail from updating
-  // at all; this may break mods which call updateRotation on the player, but i don't know any.
+  // at all
   // thank you to syzzi for discovering how to fix this
   void updateRotation(float p0) {
     PlayerObject::updateRotation(p0);
 
-    if (LevelEditorLayer::get() || !m_gameLayer) return;
+    if (LevelEditorLayer::get() || !m_gameLayer || !m_fields->gotHereFromUpdate) return;
+    m_fields->gotHereFromUpdate = false;
 
     if (!m_isDart || m_isHidden) {
       m_fields->previousPos = m_fields->currentPos;
@@ -85,7 +88,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
       m_fields->forceAddSpiderRing = false;
       m_fields->forceAddSpiderPad = false;
       m_fields->spiderPadTriggered = false;
-      m_fields->forceAdd = false;
+      m_fields->forceAdd = true;
       return;
     }
 
