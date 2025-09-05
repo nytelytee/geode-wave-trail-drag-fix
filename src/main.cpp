@@ -5,6 +5,17 @@
 
 using namespace geode::prelude;
 
+$execute {
+  Mod::get()->setSavedValue<bool>("show-in-editor", false);
+}
+
+bool inEditor() {
+  if (Mod::get()->getSavedValue<bool>("show-in-editor")) {
+    return false;
+  } else {
+    return LevelEditorLayer::get();
+  }
+}
 
 class $modify(WTDFPlayerObject, PlayerObject) {
 
@@ -75,7 +86,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
   void updateRotation(float p0) {
     PlayerObject::updateRotation(p0);
 
-    if (LevelEditorLayer::get() || !m_gameLayer || !m_fields->gotHereFromUpdate) return;
+    if (inEditor() || !m_gameLayer || !m_fields->gotHereFromUpdate) return;
     m_fields->gotHereFromUpdate = false;
 
     if (!m_isDart || m_isHidden) {
@@ -249,7 +260,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     const int TOGGLE_RING = 1594;
     const int TELEPORT_RING = 3027;
     const int SPIDER_RING = 3004;
-    if (!m_isDart || !m_gameLayer || LevelEditorLayer::get()) return PlayerObject::pushButton(button);
+    if (!m_isDart || !m_gameLayer || inEditor()) return PlayerObject::pushButton(button);
     bool willTriggerSpiderRing = false;
 
     for (unsigned i = 0; i < m_touchingRings->count(); i++) {
@@ -276,7 +287,7 @@ class $modify(WTDFPlayerObject, PlayerObject) {
 
   // spider pad
   void spiderTestJump(bool p0) {
-    if (!m_isDart || !m_gameLayer || LevelEditorLayer::get() || m_fields->justTeleported) return PlayerObject::spiderTestJump(p0);
+    if (!m_isDart || !m_gameLayer || inEditor() || m_fields->justTeleported) return PlayerObject::spiderTestJump(p0);
     m_waveTrail->addPoint(m_fields->currentPos);
     m_fields->previousPos = m_fields->currentPos;
     // this runs on both spider orbs and pads triggering
@@ -316,7 +327,7 @@ class $modify(GJBaseGameLayer) {
     // this does mean that the teleport trigger does not let you teleport player 2. lol.
     // thank you hiimjasmine00 for identifying the case where player can be null
     if (!player) player = m_player1;
-    if (LevelEditorLayer::get() || !player->m_isDart) return;
+    if (inEditor() || !player->m_isDart) return;
     static_cast<WTDFPlayerObject *>(player)->m_fields->previousPos = player->getRealPosition();
     static_cast<WTDFPlayerObject *>(player)->m_fields->justTeleported = true;
   }
