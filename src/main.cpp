@@ -6,14 +6,15 @@
 using namespace geode::prelude;
 
 $execute {
+  // reset value in case another mod that changes it is uninstalled
   Mod::get()->setSavedValue<bool>("show-in-editor", false);
 }
 
 bool inEditor() {
-  if (Mod::get()->getSavedValue<bool>("show-in-editor")) {
+  if (!LevelEditorLayer::get()) {
     return false;
   } else {
-    return LevelEditorLayer::get();
+    return !Mod::get()->getSavedValue<bool>("show-in-editor");
   }
 }
 
