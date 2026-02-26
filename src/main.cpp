@@ -40,6 +40,12 @@ class $modify(WTDFPlayerObject, PlayerObject) {
     float deltaFactor = 0;
   };
 
+  static void onModify(auto& self) {
+    Result res = self.setHookPriorityAfter("PlayerObject::update", "syzzi.click_between_frames");
+    if (!res && res != Err("Mod not found"))
+      log::error("Failed to set hook priority of PlayerObject::update.");
+  }
+
   void resetObject() {
     WTDFPlayerObject::Fields defaultFields;
     *m_fields.operator->() = defaultFields;
