@@ -1,3 +1,6 @@
+# v1.5.0
+- update to 2.2081
+
 # v1.4.5
 - fix entering dual mode connecting the trail to the start of the level
 - fix the trail not being drawn when entering wave sometimes
